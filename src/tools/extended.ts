@@ -84,8 +84,8 @@ export function createExtendedHandlers(
       const calendar = await sdk.getTradingCalendar();
       return {
         total: calendar.length,
-        startDate: calendar[0],
-        endDate: calendar[calendar.length - 1],
+        startDate: calendar.length > 0 ? calendar[0] : null,
+        endDate: calendar.length > 0 ? calendar[calendar.length - 1] : null,
         dates: calendar,
       };
     },

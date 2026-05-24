@@ -104,7 +104,7 @@ export function getResourceTemplates(): ResourceTemplate[] {
 }
 
 /**
- * 从 URI 中提取参数
+ * 从 URI 中提取参数（自动 URL-decode，支持中文板块名等非 ASCII 字符）
  */
 function extractUriParams(template: string, uri: string): Record<string, string> | null {
   const paramNames: string[] = [];
@@ -117,7 +117,15 @@ function extractUriParams(template: string, uri: string): Record<string, string>
   const match = uri.match(regex);
   if (!match) return null;
   const params: Record<string, string> = {};
-  paramNames.forEach((name, i) => { params[name] = match[i + 1]; });
+  paramNames.forEach((name, i) => {
+    const raw = match[i + 1];
+    try {
+      params[name] = decodeURIComponent(raw);
+    } catch {
+      // 非合法 URL 编码（如已是中文），原样返回
+      params[name] = raw;
+    }
+  });
   return params;
 }
 
@@ -132,7 +140,12 @@ export function createResourceHandlers(
     'stock://calendar/trading': async () => {
       const calendar = await sdk.getTradingCalendar();
       return JSON.stringify(
-        { total: calendar.length, startDate: calendar[0], endDate: calendar[calendar.length - 1], dates: calendar },
+        {
+          total: calendar.length,
+          startDate: calendar.length > 0 ? calendar[0] : null,
+          endDate: calendar.length > 0 ? calendar[calendar.length - 1] : null,
+          dates: calendar,
+        },
         null, 2
       );
     },

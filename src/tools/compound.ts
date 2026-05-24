@@ -28,7 +28,7 @@ const ScanMarketSchema = z.object({
   minChange: z.number().optional().describe('最低涨跌幅(%)，如 5 表示涨幅 ≥ 5%'),
   maxChange: z.number().optional().describe('最高涨跌幅(%)，如 -5 表示跌幅 ≥ 5%'),
   minVolume: z.number().optional().describe('最低成交量（手）'),
-  minAmount: z.number().optional().describe('最低成交额（元）'),
+  minAmount: z.number().optional().describe('最低成交额（元，例如 1 亿 = 1e8）'),
   minTurnover: z.number().optional().describe('最低换手率(%)'),
   maxPE: z.number().optional().describe('最高市盈率'),
   minPE: z.number().optional().describe('最低市盈率（过滤负市盈率可设为 0）'),
@@ -90,7 +90,7 @@ export const compoundTools: Tool[] = [
         minChange: { type: 'number', description: '最低涨跌幅(%)' },
         maxChange: { type: 'number', description: '最高涨跌幅(%)' },
         minVolume: { type: 'number', description: '最低成交量（手）' },
-        minAmount: { type: 'number', description: '最低成交额（元）' },
+        minAmount: { type: 'number', description: '最低成交额（元，例如 1 亿 = 1e8）' },
         minTurnover: { type: 'number', description: '最低换手率(%)' },
         maxPE: { type: 'number', description: '最高市盈率' },
         minPE: { type: 'number', description: '最低市盈率' },
@@ -251,11 +251,14 @@ export function createCompoundHandlers(sdk: StockSDK): Record<string, ToolHandle
 
       const allQuotes = await sdk.getAllAShareQuotes(options);
 
+      // SDK 的 amount 字段单位是"万元"，对外接口以"元"为单位，handler 内做转换
+      const minAmountInWan = minAmount !== undefined ? minAmount / 10000 : undefined;
+
       let filtered = allQuotes.filter((q: FullQuote) => {
         if (minChange !== undefined && (q.changePercent ?? 0) < minChange) return false;
         if (maxChange !== undefined && (q.changePercent ?? 0) > maxChange) return false;
         if (minVolume !== undefined && (q.volume ?? 0) < minVolume) return false;
-        if (minAmount !== undefined && (q.amount ?? 0) < minAmount) return false;
+        if (minAmountInWan !== undefined && (q.amount ?? 0) < minAmountInWan) return false;
         if (minTurnover !== undefined && (q.turnoverRate ?? 0) < minTurnover) return false;
         if (maxPE !== undefined && q.pe !== null && q.pe !== undefined && q.pe > maxPE) return false;
         if (minPE !== undefined && (q.pe === null || q.pe === undefined || q.pe < minPE)) return false;
@@ -264,11 +267,17 @@ export function createCompoundHandlers(sdk: StockSDK): Record<string, ToolHandle
 
       const field = sortBy ?? 'changePercent';
       const order = sortOrder ?? 'desc';
-      filtered.sort((a, b) => {
-        const va = (a as Record<string, unknown>)[field] as number ?? 0;
-        const vb = (b as Record<string, unknown>)[field] as number ?? 0;
-        return order === 'desc' ? vb - va : va - vb;
-      });
+      // 显式 switch 避免 string index 强转；null PE 排到最末
+      const pick = (q: FullQuote): number => {
+        switch (field) {
+          case 'changePercent': return q.changePercent ?? 0;
+          case 'volume': return q.volume ?? 0;
+          case 'amount': return q.amount ?? 0;
+          case 'turnoverRate': return q.turnoverRate ?? 0;
+          case 'pe': return q.pe ?? (order === 'desc' ? -Infinity : Infinity);
+        }
+      };
+      filtered.sort((a, b) => (order === 'desc' ? pick(b) - pick(a) : pick(a) - pick(b)));
 
       const maxLimit = limit ?? 50;
       return {

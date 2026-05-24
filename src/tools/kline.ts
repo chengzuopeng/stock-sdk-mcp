@@ -38,12 +38,15 @@ const GetTodayTimelineSchema = z.object({
 
 const IndicatorConfigSchema = z.object({
   ma: z
-    .object({
-      periods: z.array(z.number()).optional().describe('均线周期数组，如 [5, 10, 20, 60]'),
-      type: z.enum(['sma', 'ema', 'wma']).optional().describe('均线类型: sma=简单, ema=指数, wma=加权'),
-    })
+    .union([
+      z.boolean(),
+      z.object({
+        periods: z.array(z.number()).optional().describe('均线周期数组，如 [5, 10, 20, 60]'),
+        type: z.enum(['sma', 'ema', 'wma']).optional().describe('均线类型: sma=简单, ema=指数, wma=加权'),
+      }),
+    ])
     .optional()
-    .describe('MA 均线配置'),
+    .describe('MA 均线配置，true 表示使用默认参数 [5,10,20,30,60,120,250]'),
   macd: z
     .union([
       z.boolean(),
