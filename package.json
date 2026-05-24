@@ -64,7 +64,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "stock-sdk": "^1.9.0",
+    "stock-sdk": "^1.9.3",
     "zod": "^3.23.0"
   },
   "devDependencies": {
