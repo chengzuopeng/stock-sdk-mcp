@@ -3,7 +3,7 @@
  * 包含指数期权、ETF 期权、商品期权和中金所期权数据
  */
 
-import type { StockSDK } from 'stock-sdk';
+import type { StockSDK, ETFOptionCate } from 'stock-sdk';
 import { z } from 'zod';
 import type { Tool, ToolHandler } from './types.js';
 
@@ -22,12 +22,16 @@ const CFFEXOptionQuotesSchema = z.object({
   pageSize: z.number().optional().describe('每页数量'),
 });
 
+// SDK 实际接受品种名，但 LLM 更熟悉 ETF 代码，提供别名映射
+const ETF_OPTION_CATE_ENUM = ['50ETF', '300ETF', '500ETF', '科创50', '科创板50'] as const;
+const ETF_OPTION_CATE_DESC = 'ETF 期权品种: 50ETF, 300ETF, 500ETF, 科创50, 科创板50';
+
 const ETFOptionMonthsSchema = z.object({
-  cate: z.enum(['510050', '510300', '510500', '159901', '159915', '159919', '159922']).describe('ETF 品种代码'),
+  cate: z.enum(ETF_OPTION_CATE_ENUM).describe(ETF_OPTION_CATE_DESC),
 });
 
 const ETFOptionExpireDaySchema = z.object({
-  cate: z.enum(['510050', '510300', '510500', '159901', '159915', '159919', '159922']).describe('ETF 品种代码'),
+  cate: z.enum(ETF_OPTION_CATE_ENUM).describe(ETF_OPTION_CATE_DESC),
   month: z.string().describe('到期月份，格式 YYYY-MM，如 "2025-04"'),
 });
 
@@ -94,7 +98,7 @@ export const optionsTools: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        cate: { type: 'string', enum: ['510050', '510300', '510500', '159901', '159915', '159919', '159922'], description: 'ETF 品种代码，如 "510050"（50ETF）' },
+        cate: { type: 'string', enum: ETF_OPTION_CATE_ENUM as unknown as string[], description: ETF_OPTION_CATE_DESC },
       },
       required: ['cate'],
     },
@@ -106,7 +110,7 @@ export const optionsTools: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        cate: { type: 'string', enum: ['510050', '510300', '510500', '159901', '159915', '159919', '159922'], description: 'ETF 品种代码' },
+        cate: { type: 'string', enum: ETF_OPTION_CATE_ENUM as unknown as string[], description: ETF_OPTION_CATE_DESC },
         month: { type: 'string', description: '到期月份，格式 YYYY-MM，如 "2025-04"' },
       },
       required: ['cate', 'month'],
@@ -200,12 +204,12 @@ export function createOptionsHandlers(sdk: StockSDK): Record<string, ToolHandler
 
     get_etf_option_months: async (args) => {
       const { cate } = ETFOptionMonthsSchema.parse(args);
-      return await sdk.getETFOptionMonths(cate);
+      return await sdk.getETFOptionMonths(cate as ETFOptionCate);
     },
 
     get_etf_option_expire_day: async (args) => {
       const { cate, month } = ETFOptionExpireDaySchema.parse(args);
-      return await sdk.getETFOptionExpireDay(cate, month);
+      return await sdk.getETFOptionExpireDay(cate as ETFOptionCate, month);
     },
 
     get_etf_option_minute: async (args) => {

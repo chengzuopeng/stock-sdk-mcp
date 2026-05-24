@@ -326,14 +326,14 @@ export function createCompoundHandlers(sdk: StockSDK): Record<string, ToolHandle
         indices: [...indices, ...(includeHK ? hkIndices : [])],
         industryTop10: sortedIndustry.slice(0, 10).map((b) => ({
           name: b.name, code: b.code, changePercent: b.changePercent,
-          leadingStock: b.leadingStock, leadingStockChange: b.leadingStockChange,
+          leadingStock: b.leadingStock, leadingStockChangePercent: b.leadingStockChangePercent,
         })),
         industryBottom10: sortedIndustry.slice(-10).reverse().map((b) => ({
           name: b.name, code: b.code, changePercent: b.changePercent,
         })),
         conceptTop10: sortedConcept.slice(0, 10).map((b) => ({
           name: b.name, code: b.code, changePercent: b.changePercent,
-          leadingStock: b.leadingStock, leadingStockChange: b.leadingStockChange,
+          leadingStock: b.leadingStock, leadingStockChangePercent: b.leadingStockChangePercent,
         })),
         sectorBreadth: {
           industryRise: riseCount,

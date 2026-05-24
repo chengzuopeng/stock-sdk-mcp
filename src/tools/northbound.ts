@@ -3,7 +3,7 @@
  * 包含北向实时数据、历史数据、持股排行
  */
 
-import type { StockSDK } from 'stock-sdk';
+import type { StockSDK, NorthboundHoldingRankItem } from 'stock-sdk';
 import { z } from 'zod';
 import type { Tool, ToolHandler } from './types.js';
 
@@ -175,16 +175,18 @@ export function createNorthboundHandlers(sdk: StockSDK): Record<string, ToolHand
     get_northbound_holding_rank: async (args) => {
       const { market, period, date, topN } = NorthboundHoldingRankSchema.parse(args);
       const data = await sdk.getNorthboundHoldingRank({ market, period, date });
-      // 按持股变动绝对值排序，取 TOP N，避免响应过大（完整数据可能 4-8 万条）
-      const sorted = [...data].sort((a, b) => {
-        const va = Math.abs(((a as any).holdSharesChange ?? 0));
-        const vb = Math.abs(((b as any).holdSharesChange ?? 0));
+      // 按区间增持股数绝对值排序，取 TOP N，避免响应过大（完整数据可能 4-8 万条）
+      const sorted = [...data].sort((a: NorthboundHoldingRankItem, b: NorthboundHoldingRankItem) => {
+        const va = Math.abs(a.addShares ?? 0);
+        const vb = Math.abs(b.addShares ?? 0);
         return vb - va;
       });
+      const limit = topN ?? 100;
       return {
         total: data.length,
-        topN: topN ?? 100,
-        data: sorted.slice(0, topN ?? 100),
+        topN: limit,
+        sortedBy: 'addShares(abs desc)',
+        data: sorted.slice(0, limit),
       };
     },
   };
