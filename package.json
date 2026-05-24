@@ -18,8 +18,10 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "prepublishOnly": "yarn build"
+    "test:integration": "RUN_INTEGRATION=1 vitest run src/__tests__/integration.test.ts",
+    "prepublishOnly": "yarn typecheck && yarn test && yarn build"
   },
   "keywords": [
     "openclaw",

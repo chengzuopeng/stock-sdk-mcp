@@ -7,6 +7,15 @@ import type { StockSDK, FullQuote, IndicatorOptions } from 'stock-sdk';
 import { z } from 'zod';
 import type { Tool, ToolHandler } from './types.js';
 
+/**
+ * 把 PromiseSettledResult 转成 { status, error? } 对象
+ * 失败时附带 reason 字符串，方便 LLM 排查
+ */
+function settledMeta(r: PromiseSettledResult<unknown>): { status: 'fulfilled' | 'rejected'; error?: string } {
+  if (r.status === 'fulfilled') return { status: 'fulfilled' };
+  return { status: 'rejected', error: r.reason instanceof Error ? r.reason.message : String(r.reason) };
+}
+
 // ==================== Schema 定义 ====================
 
 const AnalyzeStockSchema = z.object({
@@ -172,11 +181,11 @@ export function createCompoundHandlers(sdk: StockSDK): Record<string, ToolHandle
 
       return {
         dataStatus: {
-          kline: results[0].status,
-          fundFlow: results[1].status,
-          dividends: results[2].status,
-          fundFlowHistory: results[3].status,
-          northboundHolding: results[4].status,
+          kline: settledMeta(results[0]),
+          fundFlow: settledMeta(results[1]),
+          dividends: settledMeta(results[2]),
+          fundFlowHistory: settledMeta(results[3]),
+          northboundHolding: settledMeta(results[4]),
         },
         kline: {
           total: klines.length,
@@ -323,14 +332,14 @@ export function createCompoundHandlers(sdk: StockSDK): Record<string, ToolHandle
 
       return {
         dataStatus: {
-          indices: results[0].status,
-          industry: results[1].status,
-          concept: results[2].status,
-          hkIndices: results[3].status,
-          northbound: results[4].status,
-          ztPool: results[5].status,
-          dtPool: results[6].status,
-          boardChanges: results[7].status,
+          indices: settledMeta(results[0]),
+          industry: settledMeta(results[1]),
+          concept: settledMeta(results[2]),
+          hkIndices: settledMeta(results[3]),
+          northbound: settledMeta(results[4]),
+          ztPool: settledMeta(results[5]),
+          dtPool: settledMeta(results[6]),
+          boardChanges: settledMeta(results[7]),
         },
         indices: [...indices, ...(includeHK ? hkIndices : [])],
         industryTop10: sortedIndustry.slice(0, 10).map((b) => ({
@@ -344,10 +353,11 @@ export function createCompoundHandlers(sdk: StockSDK): Record<string, ToolHandle
           name: b.name, code: b.code, changePercent: b.changePercent,
           leadingStock: b.leadingStock, leadingStockChangePercent: b.leadingStockChangePercent,
         })),
+        // 注意：这里统计的是"板块数量"（行业板块的涨跌分布，几十个量级），不是"个股家数"
         sectorBreadth: {
-          industryRise: riseCount,
-          industryFall: fallCount,
-          industryFlat: industryList.length - riseCount - fallCount,
+          industryRiseBoardCount: riseCount,
+          industryFallBoardCount: fallCount,
+          industryFlatBoardCount: industryList.length - riseCount - fallCount,
         },
         northbound: northboundSummary.length > 0 ? northboundSummary : null,
         ztCount: ztPool.length,

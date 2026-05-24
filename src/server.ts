@@ -12,6 +12,7 @@ import {
   ReadResourceRequestSchema,
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
+  type GetPromptResult,
 } from '@modelcontextprotocol/sdk/types.js';
 import { StockSDK } from 'stock-sdk';
 import { getAllTools, createAllHandlers } from './tools/index.js';
@@ -159,13 +160,13 @@ export function createServer(): Server {
     return { prompts };
   });
 
-  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+  server.setRequestHandler(GetPromptRequestSchema, async (request): Promise<GetPromptResult> => {
     const { name, arguments: args } = request.params;
     const handler = promptHandlers[name];
     if (!handler) {
       throw new Error(`Unknown prompt: ${name}`);
     }
-    return handler(args ?? {});
+    return handler(args ?? {}) as GetPromptResult;
   });
 
   return server;

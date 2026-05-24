@@ -100,8 +100,18 @@ describeIf('Integration: northbound.ts', () => {
     // SDK 一次拉全量约 4-8 万条数据，实测耗时 100-150s（handler 内已 topN 截断响应）
     const r = await handlers.get_northbound_holding_rank({ market: 'shanghai', period: 'today', topN: 50 });
     expect(r).toBeDefined();
-    expect((r as any).total).toBeGreaterThanOrEqual(0);
-    expect((r as any).data.length).toBeLessThanOrEqual(50);
+    const result = r as any;
+    expect(result.total).toBeGreaterThanOrEqual(0);
+    expect(result.data.length).toBeLessThanOrEqual(50);
+
+    // 验证字段名修复（addShares 真存在 & 排序确实按 abs(addShares) desc）
+    if (result.data.length >= 2) {
+      expect(result.data[0]).toHaveProperty('addShares');
+      expect(result.sortedBy).toBe('addShares(abs desc)');
+      const a0 = Math.abs(result.data[0].addShares ?? 0);
+      const a1 = Math.abs(result.data[1].addShares ?? 0);
+      expect(a0).toBeGreaterThanOrEqual(a1);
+    }
   }, 240000);
 });
 
@@ -202,11 +212,13 @@ describeIf('Integration: enhanced compound tools', () => {
     expect(r).toBeDefined();
     const result = r as any;
     expect(result.dataStatus).toBeDefined();
-    expect(result.dataStatus.kline).toMatch(/fulfilled|rejected/);
-    expect(result.dataStatus.fundFlow).toMatch(/fulfilled|rejected/);
-    expect(result.dataStatus.fundFlowHistory).toMatch(/fulfilled|rejected/);
-    expect(result.dataStatus.northboundHolding).toMatch(/fulfilled|rejected/);
-    expect(result.dataStatus.dividends).toMatch(/fulfilled|rejected/);
+    // dataStatus 现在是 { status, error? } 对象（修复 #7）
+    for (const key of ['kline', 'fundFlow', 'fundFlowHistory', 'northboundHolding', 'dividends']) {
+      expect(result.dataStatus[key].status).toMatch(/fulfilled|rejected/);
+      if (result.dataStatus[key].status === 'rejected') {
+        expect(typeof result.dataStatus[key].error).toBe('string');
+      }
+    }
     expect(result.kline).toBeDefined();
     expect(result.fundFlowHistory).toBeDefined();
     expect(result.northboundHolding).toBeDefined();
@@ -217,17 +229,29 @@ describeIf('Integration: enhanced compound tools', () => {
     expect(r).toBeDefined();
     const result = r as any;
     expect(result.dataStatus).toBeDefined();
-    expect(result.dataStatus.indices).toMatch(/fulfilled|rejected/);
-    expect(result.dataStatus.northbound).toMatch(/fulfilled|rejected/);
-    expect(result.dataStatus.ztPool).toMatch(/fulfilled|rejected/);
-    expect(result.dataStatus.dtPool).toMatch(/fulfilled|rejected/);
-    expect(result.dataStatus.boardChanges).toMatch(/fulfilled|rejected/);
+    // dataStatus 现在是 { status, error? } 对象（修复 #7）
+    for (const key of ['indices', 'industry', 'concept', 'hkIndices', 'northbound', 'ztPool', 'dtPool', 'boardChanges']) {
+      expect(result.dataStatus[key].status).toMatch(/fulfilled|rejected/);
+    }
     expect(result.indices).toBeDefined();
     expect(result.industryTop10).toBeDefined();
     expect('ztCount' in result).toBe(true);
     expect('dtCount' in result).toBe(true);
     expect('boardChanges' in result).toBe(true);
     expect('northbound' in result).toBe(true);
+
+    // 验证字段名修复（leadingStockChangePercent 不是 leadingStockChange）
+    if (result.industryTop10.length > 0) {
+      const top = result.industryTop10[0];
+      expect(top).toHaveProperty('leadingStock');
+      expect(top).toHaveProperty('leadingStockChangePercent');
+      expect(top).not.toHaveProperty('leadingStockChange');
+    }
+
+    // 验证 sectorBreadth 重命名（修复 #9）
+    expect(result.sectorBreadth).toHaveProperty('industryRiseBoardCount');
+    expect(result.sectorBreadth).toHaveProperty('industryFallBoardCount');
+    expect(result.sectorBreadth).not.toHaveProperty('industryRise');
   }, 60000);
 });
 
