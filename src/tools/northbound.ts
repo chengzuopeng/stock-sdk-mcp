@@ -6,6 +6,7 @@
 import type { StockSDK, NorthboundHoldingRankItem } from 'stock-sdk';
 import { z } from 'zod';
 import type { Tool, ToolHandler } from './types.js';
+import { getEastmoneyHsgtRealtime } from './datafix.js';
 
 // ==================== Schema 定义 ====================
 
@@ -131,22 +132,19 @@ export function createNorthboundHandlers(sdk: StockSDK): Record<string, ToolHand
       const { direction } = NorthboundRealtimeSchema.parse(args);
       const dir = direction ?? 'north';
 
-      const [minute, summary] = await Promise.allSettled([
-        sdk.getNorthboundMinute(dir),
-        sdk.getNorthboundFlowSummary(),
-      ]);
+      const realtime = await getEastmoneyHsgtRealtime(dir);
 
       return {
         minute: {
-          status: minute.status,
-          data: minute.status === 'fulfilled' ? minute.value : null,
-          error: minute.status === 'rejected' ? String(minute.reason) : undefined,
+          status: 'fulfilled',
+          data: realtime.minute,
         },
         summary: {
-          status: summary.status,
-          data: summary.status === 'fulfilled' ? summary.value : null,
-          error: summary.status === 'rejected' ? String(summary.reason) : undefined,
+          status: 'fulfilled',
+          data: realtime.summary,
         },
+        source: realtime.source,
+        warning: realtime.warning,
       };
     },
 

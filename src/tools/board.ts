@@ -151,13 +151,76 @@ export const boardTools: Tool[] = [
   },
 ];
 
+function num(v: unknown): number | null {
+  if (v == null || v === '' || v === '-') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function fetchGbkHtml(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0',
+      Referer: 'https://q.10jqka.com.cn/',
+      'Accept-Language': 'zh-CN,zh;q=0.9',
+    },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  return buf.toString('latin1');
+}
+
+function decodeGbkText(input: string): string {
+  return Buffer.from(input, 'latin1').toString('utf8');
+}
+
+async function fetchThsConceptList() {
+  const htmlLatin1 = await fetchGbkHtml('https://q.10jqka.com.cn/gn/');
+  const html = decodeGbkText(htmlLatin1);
+  const m = html.match(/id="gnSection"\s+value='(.+?)'/);
+  if (!m) throw new Error('未找到同花顺概念板块隐藏数据 gnSection');
+  const data = JSON.parse(m[1]);
+  return Object.values(data).map((row: any) => ({
+    code: String(row.platecode ?? '').replace(/^88/, 'BK'),
+    name: String(row.platename ?? ''),
+    changePercent: num(row['199112']),
+    mainNetInflow: num(row.zjjlr),
+    constituentCount: num(row.zfl),
+    source: 'ths_gn_hidden_json',
+  }));
+}
+
+async function fetchThsIndustryList() {
+  const htmlLatin1 = await fetchGbkHtml('https://q.10jqka.com.cn/thshy/');
+  const html = decodeGbkText(htmlLatin1);
+  const pattern = /<tr>\s*<td>(\d+)<\/td>\s*<td><a[^>]*detail\/code\/(\d+)\/[^>]*>([^<]+)<\/a><\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<td>([^<]+)<\/td>\s*<td><a[^>]*>([^<]+)<\/a><\/td>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>([^<]+)<\/td>/g;
+  const rows = [...html.matchAll(pattern)];
+  if (rows.length === 0) throw new Error('未解析到同花顺行业板块表格');
+  return rows.map((m) => ({
+    rank: num(m[1]),
+    code: String(m[2]).replace(/^88/, 'BK'),
+    name: m[3],
+    changePercent: num(m[4]),
+    totalVolume: num(m[5]),
+    totalAmount: num(m[6]),
+    mainNetInflow: num(m[7]),
+    riseCount: num(m[8]),
+    fallCount: num(m[9]),
+    avgPrice: num(m[10]),
+    leadingStock: m[11],
+    latest: num(m[12]),
+    leadingStockChangePercent: num(m[13]),
+    source: 'ths_industry_table',
+  }));
+}
+
 // ==================== Handler 实现 ====================
 
 export function createBoardHandlers(sdk: StockSDK): Record<string, ToolHandler> {
   return {
     // ==================== 行业板块 ====================
     get_industry_list: async () => {
-      const list = await sdk.getIndustryList();
+      const list = await fetchThsIndustryList();
       return { total: list.length, data: list };
     },
 
@@ -184,7 +247,7 @@ export function createBoardHandlers(sdk: StockSDK): Record<string, ToolHandler> 
 
     // ==================== 概念板块 ====================
     get_concept_list: async () => {
-      const list = await sdk.getConceptList();
+      const list = await fetchThsConceptList();
       return { total: list.length, data: list };
     },
 

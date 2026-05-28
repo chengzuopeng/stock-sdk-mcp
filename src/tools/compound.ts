@@ -6,6 +6,7 @@
 import type { StockSDK, FullQuote, IndicatorOptions } from 'stock-sdk';
 import { z } from 'zod';
 import type { Tool, ToolHandler } from './types.js';
+import { getEastmoneyFundFlow, getEastmoneyHsgtSummary } from './datafix.js';
 
 /**
  * 把 PromiseSettledResult 转成 { status, error? } 对象
@@ -165,7 +166,7 @@ export function createCompoundHandlers(sdk: StockSDK): Record<string, ToolHandle
 
       const results = await Promise.allSettled([
         klinePromise,
-        isAShare ? sdk.getFundFlow([symbol]) : Promise.resolve([]),
+        isAShare ? getEastmoneyFundFlow([symbol]) : Promise.resolve([]),
         isAShare ? sdk.getDividendDetail(symbol) : Promise.resolve([]),
         isAShare ? sdk.getIndividualFundFlow(symbol, { period: 'daily' }) : Promise.resolve([]),
         isAShare ? sdk.getNorthboundIndividual(symbol).catch(() => []) : Promise.resolve([]),
@@ -307,7 +308,7 @@ export function createCompoundHandlers(sdk: StockSDK): Record<string, ToolHandle
         sdk.getIndustryList(),
         sdk.getConceptList(),
         includeHK ? sdk.getHKQuotes(hkIndexCodes) : Promise.resolve([]),
-        sdk.getNorthboundFlowSummary(),
+        getEastmoneyHsgtSummary(),
         sdk.getZTPool('zt'),
         sdk.getZTPool('dt'),
         sdk.getBoardChanges(),

@@ -6,6 +6,7 @@
 import type { StockSDK } from 'stock-sdk';
 import { z } from 'zod';
 import type { Tool, ToolHandler } from './types.js';
+import { getEastmoneyFundFlow } from './datafix.js';
 
 // ==================== Schema 定义 ====================
 
@@ -72,7 +73,7 @@ export function createExtendedHandlers(
   return {
     get_fund_flow: async (args) => {
       const { codes } = CodesSchema.parse(args);
-      return await sdk.getFundFlow(codes);
+      return await getEastmoneyFundFlow(codes);
     },
 
     get_panel_large_order: async (args) => {
