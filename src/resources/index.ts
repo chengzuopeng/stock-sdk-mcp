@@ -192,7 +192,20 @@ export function createResourceHandlers(
       const params = extractUriParams('stock://quotes/{code}', uri);
       if (!params) throw new Error(`Invalid URI: ${uri}`);
       const quotes = await sdk.getFullQuotes([params.code]);
-      return JSON.stringify(quotes.length > 0 ? quotes[0] : { error: 'Not found' }, null, 2);
+      if (quotes.length === 0) {
+        return JSON.stringify({ error: 'Not found' }, null, 2);
+      }
+      const raw: any = quotes[0];
+      // 修复 #4: 同花顺口径 peStatic/peDynamic 语义相反，需交换
+      // peStatic 应为静态PE(年报)，peDynamic 应为动态PE(预测)
+      return JSON.stringify(
+        {
+          ...raw,
+          peStatic: raw.peDynamic,
+          peDynamic: raw.peStatic,
+        },
+        null, 2
+      );
     },
 
     'stock://kline/{code}/{period}': async (uri?: string) => {
