@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/chengzuopeng-stock-sdk-mcp-badge.png)](https://mseep.ai/app/chengzuopeng-stock-sdk-mcp)
+
 # Stock SDK MCP Server
 
 <p align="center">
